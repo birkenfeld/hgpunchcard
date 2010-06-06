@@ -106,8 +106,9 @@ def punchcard(ui, repo, *pats, **opts):
     try:
         if opts.get('mpl'):
             raise ImportError
-        from PyQt4.QtGui import QApplication, QColor, QFont, QImage, QPainter
-        from PyQt4.QtCore import QPointF, QRectF, Qt
+        from PyQt4.QtCore import Qt, QPointF, QRectF
+        from PyQt4.QtGui import QApplication, QColor, QFont, QImage, QLabel, \
+             QMainWindow, QPainter, QPixmap
     except ImportError:
         try:
             from matplotlib import pyplot
@@ -151,6 +152,9 @@ def punchcard(ui, repo, *pats, **opts):
         # get equal spacing for days and hours
         ax.set_aspect('equal')
         fig.savefig(filename)
+        ui.status('created punch card in %s\n' % filename)
+        if opts.get('display'):
+            pyplot.show()
 
     else:
         app = QApplication([])
@@ -178,12 +182,22 @@ def punchcard(ui, repo, *pats, **opts):
             painter.drawText(QRectF(0, 15, 800, 20), Qt.AlignCenter, title)
         painter.end()
         image.save(filename)
-    ui.status('created punch card in %s\n' % filename)
+        ui.status('created punch card in %s\n' % filename)
+        if opts.get('display'):
+            win = QMainWindow()
+            win.setWindowTitle('punchcard display')
+            win.resize(800, 300 + o)
+            lbl = QLabel(win)
+            lbl.resize(800, 300 + o)
+            lbl.setPixmap(QPixmap.fromImage(image))
+            win.show()
+            app.exec_()
 
 cmdtable = {
     'punchcard':
         (punchcard,
          [('o', 'filename', 'punchcard.png', 'name of the file created'),
+          ('', 'display', False, 'display graph immediately'),
           ('', 'mpl', False, 'use matplotlib even if PyQt is available'),
           ('t', 'title', '', 'title for punch card'),
           ('', 'font', '', 'font to use (default Arial)'),
