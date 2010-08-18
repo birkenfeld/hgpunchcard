@@ -38,7 +38,7 @@ from datetime import datetime
 from mercurial import util
 
 
-days = 'Mon Thu Wed Thu Fri Sat Sun'.split()
+days = 'Mon Tue Wed Thu Fri Sat Sun'.split()
 
 def punchcard(ui, repo, *pats, **opts):
     """Generate a "punch card" graph of commit times.
@@ -168,7 +168,7 @@ def punchcard(ui, repo, *pats, **opts):
                          QPointF(45.5 + 24 * 31, 264.5 + o))
         painter.drawLine(QPointF(35.5, 14.5 + o), QPointF(35.5, 264.5 + o))
         painter.setFont(QFont(font, 8))
-        for i, text in enumerate('Mon Thu Wed Thu Fri Sat Sun'.split()):
+        for i, text in enumerate(days):
             painter.drawText(QPointF(7.5, 34.5 + i * 34 + o), text)
         for i in range(24):
             text = '%02d' % i
