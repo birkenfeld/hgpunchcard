@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
+u"""
     hgpunchcard
     ~~~~~~~~~~~
 
@@ -16,8 +16,9 @@
 
     Then, use "hg punchcard" to generate a graph.
 
-    :copyright: 2010 by Lukáš Lalinsky <lalinsky@gmail.com>,
-                2010 by Georg Brandl <georg@python.org>.
+    :copyright: 2010-2011 by
+                Lukáš Lalinsky <lalinsky@gmail.com>,
+                Georg Brandl <georg@python.org>.
     :license:
         This program is free software; you can redistribute it and/or modify it
         under the terms of the GNU General Public License as published by the
@@ -104,57 +105,100 @@ def punchcard(ui, repo, *pats, **opts):
             ss.append(4.*n**2/maxvalue)
 
     try:
-        if opts.get('mpl'):
+        if opts.get('mpl') or opts.get('svg'):
             raise ImportError
         from PyQt4.QtCore import Qt, QPointF, QRectF
         from PyQt4.QtGui import QApplication, QColor, QFont, QImage, QLabel, \
              QMainWindow, QPainter, QPixmap
     except ImportError:
         try:
+            if opts.get('svg'):
+                raise ImportError
             from matplotlib import pyplot
         except ImportError:
-            raise util.Abort('neither PyQt4 nor matplotlib is available')
+            if not opts.get('svg'):
+                ui.status('Writing as SVG since neither PyQt4 nor '
+                          'matplotlib is available\n')
+            if filename.endswith('.png'):
+                filename = filename[:-4] + '.svg'
 
-        pyplot.rc('font', family=font)
-        # create a figure an axes with the same background color
-        fig = pyplot.figure(figsize=(8, title and 3 or 2.5),
-                            facecolor='#efefef')
-        ax = fig.add_subplot('111', axisbg='#efefef')
-        # make the figure margins smaller
-        if title:
-            fig.subplots_adjust(left=0.06, bottom=0.04, right=0.98, top=0.95)
-            ax.set_title(title, y=0.96).set_color('#333333')
+            f = open(filename, 'w')
+            f.write('<?xml version="1.0" standalone="no"?>\n')
+            f.write('<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" '
+                    '"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">\n')
+
+            o = title and 30 or 0  # y coordinate offset
+            f.write('<svg width="800" height="{0}" version="1.1" '
+                    'xmlns="http://www.w3.org/2000/svg">\n'.format(300+o))
+            f.write('<style type="text/css"> circle {{fill: black;}} '
+                    'text {{font-family:{0};font-size:12;}} '
+                    '.label{{font-size:12px;}}</style>\n'.format(font))
+            f.write('<rect x="0" y="0" width="800" height="{0}" '
+                    'style="fill:#efefef;"/>\n'.format(300+o))
+            f.write('<line x1="35.5" y1="{0}" x2="{1}" y2="{0}" '
+                    'style="stroke:black;stroke-width:2"/>\n'
+                    .format(264.5+o,45.5+24*31))
+            f.write('<line x1="35.5" y1="{0}" x2="35.5" y2="{1}" '
+                    'style="stroke:black;stroke-width:2"/>\n'
+                    .format(14.5+o,264.5+o))
+            for i, text in enumerate(days):
+                f.write('<text class="label" x="7.5" y="{0}">{1}</text>\n'
+                        .format(34.5+i*34+o,text))
+            for i in range(24):
+                f.write('<text class="label" x="{0}" y="{1}">{2:02}</text>\n'
+                        .format(53.5 + i*31, 280.5 + o, i))
+            for x, y, r in zip(xs, ys, rs):
+                f.write('<circle cx="{0}" cy="{1}" r="{2}" fill="black"/>\n'
+                        .format(58.5 + x*31, 30.5 + y*34 + o, r))
+            if title:
+                f.write('<text x="400" y="20" style="text-anchor:middle;">'
+                        '{0}</text>\n'.format(title))
+
+            f.write('</svg>')
+            f.close()
+            ui.status('created punch card in %s\n' % filename)
+
         else:
-            fig.subplots_adjust(left=0.06, bottom=0.08, right=0.98, top=0.99)
-        # don't display the axes frame
-        ax.set_frame_on(False)
-        # plot the punch card data
-        ax.scatter(xs, ys[::-1], s=ss, c='#333333', edgecolor='#333333')
-        # hide the tick lines
-        for line in ax.get_xticklines() + ax.get_yticklines():
-            line.set_alpha(0.0)
-        # draw x and y lines (instead of axes frame)
-        dist = -0.8
-        ax.plot([dist, 23.5], [dist, dist], c='#555555')
-        ax.plot([dist, dist], [dist, 6.4], c='#555555')
-        # select new axis limits
-        ax.set_xlim(-1, 24)
-        ax.set_ylim(-0.9, 6.9)
-        # set tick labels and draw them smaller than normal
-        ax.set_yticks(range(7))
-        for tx in ax.set_yticklabels(days[::-1]):
-            tx.set_color('#555555')
-            tx.set_size('x-small')
-        ax.set_xticks(range(24))
-        for tx in ax.set_xticklabels(['%02d' % x for x in range(24)]):
-            tx.set_color('#555555')
-            tx.set_size('x-small')
-        # get equal spacing for days and hours
-        ax.set_aspect('equal')
-        fig.savefig(filename)
-        ui.status('created punch card in %s\n' % filename)
-        if opts.get('display'):
-            pyplot.show()
+            pyplot.rc('font', family=font)
+            # create a figure an axes with the same background color
+            fig = pyplot.figure(figsize=(8, title and 3 or 2.5),
+                                facecolor='#efefef')
+            ax = fig.add_subplot('111', axisbg='#efefef')
+            # make the figure margins smaller
+            if title:
+                fig.subplots_adjust(left=0.06, bottom=0.04, right=0.98, top=0.95)
+                ax.set_title(title, y=0.96).set_color('#333333')
+            else:
+                fig.subplots_adjust(left=0.06, bottom=0.08, right=0.98, top=0.99)
+            # don't display the axes frame
+            ax.set_frame_on(False)
+            # plot the punch card data
+            ax.scatter(xs, ys[::-1], s=ss, c='#333333', edgecolor='#333333')
+            # hide the tick lines
+            for line in ax.get_xticklines() + ax.get_yticklines():
+                line.set_alpha(0.0)
+            # draw x and y lines (instead of axes frame)
+            dist = -0.8
+            ax.plot([dist, 23.5], [dist, dist], c='#555555')
+            ax.plot([dist, dist], [dist, 6.4], c='#555555')
+            # select new axis limits
+            ax.set_xlim(-1, 24)
+            ax.set_ylim(-0.9, 6.9)
+            # set tick labels and draw them smaller than normal
+            ax.set_yticks(range(7))
+            for tx in ax.set_yticklabels(days[::-1]):
+                tx.set_color('#555555')
+                tx.set_size('x-small')
+            ax.set_xticks(range(24))
+            for tx in ax.set_xticklabels(['%02d' % x for x in range(24)]):
+                tx.set_color('#555555')
+                tx.set_size('x-small')
+            # get equal spacing for days and hours
+            ax.set_aspect('equal')
+            fig.savefig(filename)
+            ui.status('created punch card in %s\n' % filename)
+            if opts.get('display'):
+                pyplot.show()
 
     else:
         app = QApplication([])
@@ -199,6 +243,7 @@ cmdtable = {
          [('o', 'filename', 'punchcard.png', 'name of the file created'),
           ('', 'display', False, 'display graph immediately'),
           ('', 'mpl', False, 'use matplotlib even if PyQt is available'),
+          ('', 'svg', False, 'always write SVG file'),
           ('t', 'title', '', 'title for punch card'),
           ('', 'font', '', 'font to use (default Arial)'),
           ('', 'datemin', '', 'start date (yyyy-mm-dd)'),
